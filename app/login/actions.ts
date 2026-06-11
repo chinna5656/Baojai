@@ -2,11 +2,23 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SESSION_COOKIE } from "@/lib/auth";
+import { eq } from "drizzle-orm";
+import { getDb } from "@/db/client";
+import { users } from "@/db/schema";
+import { SESSION_COOKIE, verifyPassword } from "@/lib/auth";
 
-export async function signInAction() {
+export async function signInAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const db = getDb();
+  const user = db.select().from(users).where(eq(users.email, email)).get();
+
+  if (!user || !verifyPassword(password, user.passwordHash)) {
+    redirect("/login?error=invalid");
+  }
+
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, "demo", {
+  cookieStore.set(SESSION_COOKIE, user.id, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

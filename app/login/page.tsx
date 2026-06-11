@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, Leaf, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
@@ -21,20 +22,33 @@ export default async function LoginPage() {
             </span>
             <div>
               <p className="text-2xl font-bold text-emerald-950">Baojai</p>
-              <p className="text-sm font-medium text-emerald-700">กินอย่างเข้าใจ ใส่ใจน้ำตาล</p>
+              <p className="text-sm font-medium text-emerald-700">
+                กินอย่างเข้าใจ ใส่ใจน้ำตาล
+              </p>
             </div>
           </div>
 
           <div className="mt-10">
-            <p className="text-sm font-bold text-emerald-700">เข้าสู่ระบบสุขภาพส่วนตัว</p>
-            <h1 className="mt-2 text-4xl font-bold text-slate-950">ดูแลอาหารและน้ำตาลในที่เดียว</h1>
+            <p className="text-sm font-bold text-emerald-700">
+              เข้าสู่ระบบสุขภาพส่วนตัว
+            </p>
+            <h1 className="mt-2 text-4xl font-bold text-slate-950">
+              ดูแลอาหารและน้ำตาลในที่เดียว
+            </h1>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              Dashboard นี้ใช้ demo session เพื่อพรีวิว flow จริง เมื่อเชื่อม Auth และฐานข้อมูลแล้วข้อมูลจะถูกแยกตามผู้ใช้
+              Dashboard นี้ใช้ demo session เพื่อพรีวิว flow จริง เมื่อเชื่อม
+              Auth และฐานข้อมูลแล้วข้อมูลจะถูกแยกตามผู้ใช้
             </p>
           </div>
 
-          <form action={signInAction} className="baojai-card mt-8 rounded-lg p-5">
-            <label className="block text-sm font-bold text-slate-800" htmlFor="email">
+          <form
+            action={signInAction}
+            className="baojai-card mt-8 rounded-lg p-5"
+          >
+            <label
+              className="block text-sm font-bold text-slate-800"
+              htmlFor="email"
+            >
               อีเมล
             </label>
             <div className="mt-2 flex h-12 items-center gap-3 rounded-lg border border-emerald-900/10 bg-white px-3">
@@ -48,7 +62,10 @@ export default async function LoginPage() {
               />
             </div>
 
-            <label className="mt-4 block text-sm font-bold text-slate-800" htmlFor="password">
+            <label
+              className="mt-4 block text-sm font-bold text-slate-800"
+              htmlFor="password"
+            >
               รหัสผ่าน
             </label>
             <div className="mt-2 flex h-12 items-center gap-3 rounded-lg border border-emerald-900/10 bg-white px-3">
@@ -71,10 +88,22 @@ export default async function LoginPage() {
             </button>
           </form>
 
+          <div className="mt-6 text-center text-sm text-slate-600">
+            ยังไม่มีบัญชีผู้ใช้งาน?{" "}
+            <Link href="/register" className="font-bold text-emerald-700 hover:underline">
+              สร้างบัญชีใหม่ที่นี่
+            </Link>
+          </div>
+
           <div className="mt-5 flex items-start gap-3 rounded-lg border border-emerald-900/10 bg-white/70 p-4 text-sm leading-6 text-slate-600">
-            <ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={19} />
+            <ShieldCheck
+              className="mt-0.5 shrink-0 text-emerald-700"
+              size={19}
+            />
             <p>
-              Baojai ให้คำแนะนำด้านอาหารทั่วไป ไม่ใช่การวินิจฉัยโรคหรือคำสั่งรักษา หากมีอาการผิดปกติควรปรึกษาบุคลากรทางการแพทย์
+              Baojai ให้คำแนะนำด้านอาหารทั่วไป
+              ไม่ใช่การวินิจฉัยโรคหรือคำสั่งรักษา
+              หากมีอาการผิดปกติควรปรึกษาบุคลากรทางการแพทย์
             </p>
           </div>
         </div>
@@ -91,8 +120,12 @@ export default async function LoginPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[#f5faf6] via-[#f5faf6]/22 to-transparent" />
         <div className="absolute bottom-10 left-10 max-w-md rounded-lg border border-white/60 bg-white/78 p-5 shadow-2xl backdrop-blur">
-          <p className="text-sm font-bold text-emerald-800">พร้อมสำหรับ Vercel</p>
-          <p className="mt-2 text-2xl font-bold text-slate-950">Login, Postgres, Google Sheets และ AI workflows ในโครงเดียว</p>
+          <p className="text-sm font-bold text-emerald-800">
+            พร้อมสำหรับ Vercel
+          </p>
+          <p className="mt-2 text-2xl font-bold text-slate-950">
+            Login, Postgres, Google Sheets และ AI workflows ในโครงเดียว
+          </p>
         </div>
       </section>
     </main>

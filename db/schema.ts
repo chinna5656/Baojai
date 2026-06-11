@@ -1,79 +1,63 @@
+import { sql } from "drizzle-orm";
 import {
-  boolean,
   index,
   integer,
-  jsonb,
-  numeric,
-  pgEnum,
-  pgTable,
-  text,
-  timestamp,
-  uuid,
-  varchar
-} from "drizzle-orm/pg-core";
+  real,
+  sqliteTable,
+  text
+} from "drizzle-orm/sqlite-core";
 
-export const mealTypeEnum = pgEnum("meal_type", [
-  "breakfast",
-  "lunch",
-  "dinner",
-  "snack",
-  "drink"
-]);
+const createdAt = () =>
+  integer("created_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull();
 
-export const glucoseContextEnum = pgEnum("glucose_context", [
-  "fasting",
-  "before_meal",
-  "after_meal",
-  "bedtime",
-  "other"
-]);
+const updatedAt = () =>
+  integer("updated_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull();
 
-export const riskSeverityEnum = pgEnum("risk_severity", ["low", "medium", "high"]);
+const id = () =>
+  text("id")
+    .$defaultFn(() => crypto.randomUUID())
+    .primaryKey();
 
-export const syncStatusEnum = pgEnum("sync_status", [
-  "queued",
-  "running",
-  "success",
-  "failed"
-]);
+export const mealTypes = ["breakfast", "lunch", "dinner", "snack", "drink"] as const;
+export const glucoseContexts = ["fasting", "before_meal", "after_meal", "bedtime", "other"] as const;
+export const riskSeverities = ["low", "medium", "high"] as const;
+export const syncStatuses = ["queued", "running", "success", "failed"] as const;
 
-export const users = pgTable("users", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
+export const users = sqliteTable("users", {
+  id: id(),
+  email: text("email").notNull().unique(),
   passwordHash: text("password_hash"),
-  role: varchar("role", { length: 32 }).default("user").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  role: text("role").default("user").notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
 });
 
-export const userProfiles = pgTable(
+export const userProfiles = sqliteTable(
   "user_profiles",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    displayName: varchar("display_name", { length: 160 }).notNull(),
-    ageRange: varchar("age_range", { length: 32 }),
-    sex: varchar("sex", { length: 32 }),
+    displayName: text("display_name").notNull(),
+    ageRange: text("age_range"),
+    sex: text("sex"),
     heightCm: integer("height_cm"),
-    weightKg: numeric("weight_kg", { precision: 5, scale: 2 }),
-    activityLevel: varchar("activity_level", { length: 64 }),
-    healthGoals: jsonb("health_goals").$type<string[]>(),
-    dietaryStyle: varchar("dietary_style", { length: 120 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    weightKg: real("weight_kg"),
+    activityLevel: text("activity_level"),
+    healthGoals: text("health_goals", { mode: "json" }).$type<string[]>(),
+    dietaryStyle: text("dietary_style"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
   },
-  (table) => ({
-    userIdx: index("user_profiles_user_idx").on(table.userId)
-  })
+  (table) => [index("user_profiles_user_idx").on(table.userId)]
 );
 
-export const userHealthSettings = pgTable(
+export const userHealthSettings = sqliteTable(
   "user_health_settings",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     dailySugarLimitG: integer("daily_sugar_limit_g").default(24).notNull(),
@@ -81,238 +65,220 @@ export const userHealthSettings = pgTable(
     sodiumLimitMg: integer("sodium_limit_mg").default(2000).notNull(),
     glucoseTargetMin: integer("glucose_target_min").default(80).notNull(),
     glucoseTargetMax: integer("glucose_target_max").default(140).notNull(),
-    medicalDisclaimerAccepted: boolean("medical_disclaimer_accepted").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    medicalDisclaimerAccepted: integer("medical_disclaimer_accepted", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
   },
-  (table) => ({
-    userIdx: index("user_health_settings_user_idx").on(table.userId)
-  })
+  (table) => [index("user_health_settings_user_idx").on(table.userId)]
 );
 
-export const allergies = pgTable(
+export const allergies = sqliteTable(
   "allergies",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    name: varchar("name", { length: 120 }).notNull(),
+    name: text("name").notNull(),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+    createdAt: createdAt()
   },
-  (table) => ({
-    userIdx: index("allergies_user_idx").on(table.userId)
-  })
+  (table) => [index("allergies_user_idx").on(table.userId)]
 );
 
-export const foods = pgTable("foods", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  externalId: varchar("external_id", { length: 160 }),
-  source: varchar("source", { length: 64 }).default("local").notNull(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const foods = sqliteTable("foods", {
+  id: id(),
+  externalId: text("external_id"),
+  source: text("source").default("local").notNull(),
+  name: text("name").notNull(),
   servingSizeG: integer("serving_size_g"),
   calories: integer("calories"),
-  carbG: numeric("carb_g", { precision: 8, scale: 2 }),
-  sugarG: numeric("sugar_g", { precision: 8, scale: 2 }),
-  proteinG: numeric("protein_g", { precision: 8, scale: 2 }),
-  fatG: numeric("fat_g", { precision: 8, scale: 2 }),
+  carbG: real("carb_g"),
+  sugarG: real("sugar_g"),
+  proteinG: real("protein_g"),
+  fatG: real("fat_g"),
   sodiumMg: integer("sodium_mg"),
-  mealType: mealTypeEnum("meal_type"),
-  tags: jsonb("tags").$type<string[]>(),
-  allergens: jsonb("allergens").$type<string[]>(),
+  mealType: text("meal_type", { enum: mealTypes }),
+  tags: text("tags", { mode: "json" }).$type<string[]>(),
+  allergens: text("allergens", { mode: "json" }).$type<string[]>(),
   glycemicNote: text("glycemic_note"),
   imageUrl: text("image_url"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
 });
 
-export const nutritionLabels = pgTable(
+export const nutritionLabels = sqliteTable(
   "nutrition_labels",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    foodName: varchar("food_name", { length: 255 }),
+    foodName: text("food_name"),
     imageUrl: text("image_url"),
-    parsedData: jsonb("parsed_data").$type<Record<string, unknown>>(),
+    parsedData: text("parsed_data", { mode: "json" }).$type<Record<string, unknown>>(),
     riskScore: integer("risk_score").default(0).notNull(),
-    riskLevel: riskSeverityEnum("risk_level").default("low").notNull(),
-    analysisResult: jsonb("analysis_result").$type<Record<string, unknown>>(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+    riskLevel: text("risk_level", { enum: riskSeverities }).default("low").notNull(),
+    analysisResult: text("analysis_result", { mode: "json" }).$type<Record<string, unknown>>(),
+    createdAt: createdAt()
   },
-  (table) => ({
-    userIdx: index("nutrition_labels_user_idx").on(table.userId)
-  })
+  (table) => [index("nutrition_labels_user_idx").on(table.userId)]
 );
 
-export const foodLogs = pgTable(
+export const foodLogs = sqliteTable(
   "food_logs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    foodId: uuid("food_id").references(() => foods.id, { onDelete: "set null" }),
-    mealType: mealTypeEnum("meal_type").notNull(),
-    eatenAt: timestamp("eaten_at", { withTimezone: true }).notNull(),
-    foodName: varchar("food_name", { length: 255 }).notNull(),
+    foodId: text("food_id").references(() => foods.id, { onDelete: "set null" }),
+    mealType: text("meal_type", { enum: mealTypes }).notNull(),
+    eatenAt: integer("eaten_at", { mode: "timestamp_ms" }).notNull(),
+    foodName: text("food_name").notNull(),
     servingSizeG: integer("serving_size_g"),
     calories: integer("calories"),
-    carbG: numeric("carb_g", { precision: 8, scale: 2 }),
-    sugarG: numeric("sugar_g", { precision: 8, scale: 2 }),
-    proteinG: numeric("protein_g", { precision: 8, scale: 2 }),
-    fatG: numeric("fat_g", { precision: 8, scale: 2 }),
+    carbG: real("carb_g"),
+    sugarG: real("sugar_g"),
+    proteinG: real("protein_g"),
+    fatG: real("fat_g"),
     sodiumMg: integer("sodium_mg"),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
   },
-  (table) => ({
-    userDateIdx: index("food_logs_user_date_idx").on(table.userId, table.eatenAt)
-  })
+  (table) => [index("food_logs_user_date_idx").on(table.userId, table.eatenAt)]
 );
 
-export const glucoseLogs = pgTable(
+export const glucoseLogs = sqliteTable(
   "glucose_logs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    measuredAt: timestamp("measured_at", { withTimezone: true }).notNull(),
+    measuredAt: integer("measured_at", { mode: "timestamp_ms" }).notNull(),
     value: integer("value").notNull(),
-    unit: varchar("unit", { length: 16 }).default("mg/dL").notNull(),
-    context: glucoseContextEnum("context").default("other").notNull(),
+    unit: text("unit").default("mg/dL").notNull(),
+    context: text("context", { enum: glucoseContexts }).default("other").notNull(),
     notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
   },
-  (table) => ({
-    userDateIdx: index("glucose_logs_user_date_idx").on(table.userId, table.measuredAt)
-  })
+  (table) => [index("glucose_logs_user_date_idx").on(table.userId, table.measuredAt)]
 );
 
-export const mealPlans = pgTable(
+export const mealPlans = sqliteTable(
   "meal_plans",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    planDate: timestamp("plan_date", { withTimezone: true }).notNull(),
-    title: varchar("title", { length: 255 }).notNull(),
+    planDate: integer("plan_date", { mode: "timestamp_ms" }).notNull(),
+    title: text("title").notNull(),
     rationale: text("rationale"),
-    nutritionTotals: jsonb("nutrition_totals").$type<Record<string, number>>(),
-    status: varchar("status", { length: 32 }).default("draft").notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    nutritionTotals: text("nutrition_totals", { mode: "json" }).$type<Record<string, number>>(),
+    status: text("status").default("draft").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
   },
-  (table) => ({
-    userDateIdx: index("meal_plans_user_date_idx").on(table.userId, table.planDate)
-  })
+  (table) => [index("meal_plans_user_date_idx").on(table.userId, table.planDate)]
 );
 
-export const mealPlanItems = pgTable(
+export const mealPlanItems = sqliteTable(
   "meal_plan_items",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    mealPlanId: uuid("meal_plan_id")
+    id: id(),
+    mealPlanId: text("meal_plan_id")
       .notNull()
       .references(() => mealPlans.id, { onDelete: "cascade" }),
-    foodId: uuid("food_id").references(() => foods.id, { onDelete: "set null" }),
-    slot: mealTypeEnum("slot").notNull(),
-    menuName: varchar("menu_name", { length: 255 }).notNull(),
+    foodId: text("food_id").references(() => foods.id, { onDelete: "set null" }),
+    slot: text("slot", { enum: mealTypes }).notNull(),
+    menuName: text("menu_name").notNull(),
     note: text("note"),
-    nutrition: jsonb("nutrition").$type<Record<string, number>>(),
-    completed: boolean("completed").default(false).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+    nutrition: text("nutrition", { mode: "json" }).$type<Record<string, number>>(),
+    completed: integer("completed", { mode: "boolean" }).default(false).notNull(),
+    createdAt: createdAt()
   },
-  (table) => ({
-    planIdx: index("meal_plan_items_plan_idx").on(table.mealPlanId)
-  })
+  (table) => [index("meal_plan_items_plan_idx").on(table.mealPlanId)]
 );
 
-export const chatSessions = pgTable(
+export const chatSessions = sqliteTable(
   "chat_sessions",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
+    id: id(),
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    title: varchar("title", { length: 255 }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+    title: text("title"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
   },
-  (table) => ({
-    userIdx: index("chat_sessions_user_idx").on(table.userId)
-  })
+  (table) => [index("chat_sessions_user_idx").on(table.userId)]
 );
 
-export const chatMessages = pgTable(
+export const chatMessages = sqliteTable(
   "chat_messages",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    sessionId: uuid("session_id")
+    id: id(),
+    sessionId: text("session_id")
       .notNull()
       .references(() => chatSessions.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    role: varchar("role", { length: 32 }).notNull(),
+    role: text("role").notNull(),
     content: text("content").notNull(),
-    model: varchar("model", { length: 80 }),
-    safetyFlags: jsonb("safety_flags").$type<string[]>(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+    model: text("model"),
+    safetyFlags: text("safety_flags", { mode: "json" }).$type<string[]>(),
+    createdAt: createdAt()
   },
-  (table) => ({
-    sessionIdx: index("chat_messages_session_idx").on(table.sessionId)
-  })
+  (table) => [index("chat_messages_session_idx").on(table.sessionId)]
 );
 
-export const googleSheetSources = pgTable("google_sheet_sources", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: varchar("name", { length: 160 }).notNull(),
-  spreadsheetId: varchar("spreadsheet_id", { length: 255 }).notNull(),
-  sheetName: varchar("sheet_name", { length: 160 }).notNull(),
-  range: varchar("range", { length: 80 }).notNull(),
-  enabled: boolean("enabled").default(true).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull()
+export const googleSheetSources = sqliteTable("google_sheet_sources", {
+  id: id(),
+  name: text("name").notNull(),
+  spreadsheetId: text("spreadsheet_id").notNull(),
+  sheetName: text("sheet_name").notNull(),
+  range: text("range").notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).default(true).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
 });
 
-export const sheetSyncRuns = pgTable(
+export const sheetSyncRuns = sqliteTable(
   "sheet_sync_runs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    sourceId: uuid("source_id").references(() => googleSheetSources.id, { onDelete: "set null" }),
-    status: syncStatusEnum("status").default("queued").notNull(),
+    id: id(),
+    sourceId: text("source_id").references(() => googleSheetSources.id, { onDelete: "set null" }),
+    status: text("status", { enum: syncStatuses }).default("queued").notNull(),
     rowsImported: integer("rows_imported").default(0).notNull(),
-    errors: jsonb("errors").$type<string[]>(),
-    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
-    finishedAt: timestamp("finished_at", { withTimezone: true })
+    errors: text("errors", { mode: "json" }).$type<string[]>(),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }).default(sql`(unixepoch() * 1000)`).notNull(),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" })
   },
-  (table) => ({
-    sourceIdx: index("sheet_sync_runs_source_idx").on(table.sourceId)
-  })
+  (table) => [index("sheet_sync_runs_source_idx").on(table.sourceId)]
 );
 
-export const auditLogs = pgTable(
+export const auditLogs = sqliteTable(
   "audit_logs",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
-    action: varchar("action", { length: 120 }).notNull(),
-    resourceType: varchar("resource_type", { length: 120 }),
-    resourceId: uuid("resource_id"),
-    metadata: jsonb("metadata").$type<Record<string, unknown>>(),
-    ipAddress: varchar("ip_address", { length: 80 }),
+    id: id(),
+    userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
+    action: text("action").notNull(),
+    resourceType: text("resource_type"),
+    resourceId: text("resource_id"),
+    metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
+    ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull()
+    createdAt: createdAt()
   },
-  (table) => ({
-    userIdx: index("audit_logs_user_idx").on(table.userId),
-    actionIdx: index("audit_logs_action_idx").on(table.action)
-  })
+  (table) => [
+    index("audit_logs_user_idx").on(table.userId),
+    index("audit_logs_action_idx").on(table.action)
+  ]
 );

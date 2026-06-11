@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "latest",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.10.0",
     "drizzle-orm": "latest",
     "googleapis": "latest",
     "lucide-react": "latest",
