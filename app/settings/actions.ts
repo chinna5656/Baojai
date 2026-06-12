@@ -8,23 +8,46 @@ import { allergies, userHealthSettings, userProfiles } from "@/db/schema";
 import { writeAuditLog } from "@/lib/audit";
 import { requireUser } from "@/lib/auth";
 
+const allowedSexValues = new Set(["female", "male", "other"]);
+const allowedAgeRanges = new Set(["under_18", "18_29", "30_44", "45_59", "60_plus"]);
+const allowedDietaryStyles = new Set(["thai_balanced", "lower_carb", "high_protein", "vegetarian"]);
+
 function getString(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-function getNullableString(formData: FormData, key: string) {
+function getLimitedString(formData: FormData, key: string, maxLength: number) {
+  return getString(formData, key).slice(0, maxLength);
+}
+
+function getNullableString(formData: FormData, key: string, maxLength = 120) {
   const value = getString(formData, key);
 
-  return value || null;
+  return value ? value.slice(0, maxLength) : null;
 }
 
-function getInteger(formData: FormData, key: string, fallback: number) {
-  const value = Number(getString(formData, key));
+function getOptionalEnum(formData: FormData, key: string, allowedValues: Set<string>) {
+  const value = getString(formData, key);
 
-  return Number.isFinite(value) ? Math.round(value) : fallback;
+  if (!value) {
+    return null;
+  }
+
+  return allowedValues.has(value) ? value : null;
 }
 
-function getNullableInteger(formData: FormData, key: string) {
+function getIntegerInRange(formData: FormData, key: string, fallback: number, min: number, max: number) {
+  const rawValue = getString(formData, key);
+  const value = rawValue ? Number(rawValue) : fallback;
+
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function getNullableIntegerInRange(formData: FormData, key: string, min: number, max: number) {
   const rawValue = getString(formData, key);
 
   if (!rawValue) {
@@ -33,10 +56,14 @@ function getNullableInteger(formData: FormData, key: string) {
 
   const value = Number(rawValue);
 
-  return Number.isFinite(value) ? Math.round(value) : null;
+  if (!Number.isFinite(value) || value < min || value > max) {
+    return null;
+  }
+
+  return Math.round(value);
 }
 
-function getNullableNumber(formData: FormData, key: string) {
+function getNullableNumberInRange(formData: FormData, key: string, min: number, max: number) {
   const rawValue = getString(formData, key);
 
   if (!rawValue) {
@@ -45,45 +72,66 @@ function getNullableNumber(formData: FormData, key: string) {
 
   const value = Number(rawValue);
 
-  return Number.isFinite(value) ? value : null;
+  if (!Number.isFinite(value) || value < min || value > max) {
+    return null;
+  }
+
+  return Number(value.toFixed(1));
 }
 
 function parseAllergies(value: string) {
-  return value
+  return Array.from(
+    new Set(
+      value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean)
-    .slice(0, 20);
+        .map((item) => item.slice(0, 60))
+    )
+  ).slice(0, 20);
 }
 
 export async function updateSettingsAction(formData: FormData) {
   const user = await requireUser();
+
+  if (user.id === "demo") {
+    redirect("/settings?error=demo-readonly");
+  }
+
   const db = getDb();
 
-  const displayName = getString(formData, "displayName");
+  const displayName = getLimitedString(formData, "displayName", 80);
 
   if (!displayName) {
     redirect("/settings?error=missing-name");
   }
 
+  const healthGoal = getNullableString(formData, "healthGoal", 100) ?? "control_glucose";
+  const glucoseTargetMin = getIntegerInRange(formData, "glucoseTargetMin", 80, 40, 250);
+  const glucoseTargetMax = getIntegerInRange(formData, "glucoseTargetMax", 140, 40, 350);
+
+  if (glucoseTargetMin >= glucoseTargetMax) {
+    redirect("/settings?error=invalid-glucose-target");
+  }
+
   const profileValues = {
     displayName,
-    ageRange: getNullableString(formData, "ageRange"),
-    sex: getNullableString(formData, "sex"),
-    heightCm: getNullableInteger(formData, "heightCm"),
-    weightKg: getNullableNumber(formData, "weightKg"),
-    activityLevel: getNullableString(formData, "activityLevel"),
-    dietaryStyle: getNullableString(formData, "dietaryStyle"),
-    healthGoals: [getNullableString(formData, "healthGoal") ?? "control_glucose"],
+    ageRange: getOptionalEnum(formData, "ageRange", allowedAgeRanges),
+    sex: getOptionalEnum(formData, "sex", allowedSexValues),
+    heightCm: getNullableIntegerInRange(formData, "heightCm", 80, 250),
+    weightKg: getNullableNumberInRange(formData, "weightKg", 20, 300),
+    activityLevel: getNullableString(formData, "activityLevel", 120),
+    dietaryStyle: getOptionalEnum(formData, "dietaryStyle", allowedDietaryStyles),
+    healthGoals: [healthGoal],
     updatedAt: new Date()
   };
 
   const healthValues = {
-    dailySugarLimitG: getInteger(formData, "dailySugarLimitG", user.dailySugarLimitG),
-    dailyCarbTargetG: getInteger(formData, "dailyCarbTargetG", user.dailyCarbTargetG),
-    sodiumLimitMg: getInteger(formData, "sodiumLimitMg", user.sodiumLimitMg),
-    glucoseTargetMin: getInteger(formData, "glucoseTargetMin", 80),
-    glucoseTargetMax: getInteger(formData, "glucoseTargetMax", 140),
+    dailySugarLimitG: getIntegerInRange(formData, "dailySugarLimitG", user.dailySugarLimitG, 1, 150),
+    dailyCarbTargetG: getIntegerInRange(formData, "dailyCarbTargetG", user.dailyCarbTargetG, 1, 500),
+    sodiumLimitMg: getIntegerInRange(formData, "sodiumLimitMg", user.sodiumLimitMg, 100, 10_000),
+    glucoseTargetMin,
+    glucoseTargetMax,
     medicalDisclaimerAccepted: formData.get("medicalDisclaimerAccepted") === "on",
     updatedAt: new Date()
   };

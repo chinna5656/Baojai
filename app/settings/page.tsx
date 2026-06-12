@@ -1,28 +1,14 @@
 import { desc, eq } from "drizzle-orm";
-import { Activity, Database, HeartPulse, KeyRound, Save, ShieldCheck, UserRound, Utensils } from "lucide-react";
+import { Database, KeyRound, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { SectionTitle } from "@/components/SectionTitle";
 import { getDb } from "@/db/client";
 import { allergies, auditLogs, userHealthSettings, userProfiles } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
 import { sheetSources } from "@/lib/mock-data";
-import { updateSettingsAction } from "./actions";
+import { SettingsProfileForm } from "./SettingsProfileForm";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
-
-const sexLabels: Record<string, string> = {
-  female: "หญิง",
-  male: "ชาย",
-  other: "อื่นๆ"
-};
-
-const ageLabels: Record<string, string> = {
-  under_18: "ต่ำกว่า 18 ปี",
-  "18_29": "18-29 ปี",
-  "30_44": "30-44 ปี",
-  "45_59": "45-59 ปี",
-  "60_plus": "60 ปีขึ้นไป"
-};
 
 const dietaryLabels: Record<string, string> = {
   thai_balanced: "อาหารไทยสมดุล",
@@ -61,23 +47,6 @@ function parseGlucoseTarget(target: string) {
   return { min: min ?? 80, max: max ?? 140 };
 }
 
-function ProfileField({
-  children,
-  className = "",
-  label
-}: {
-  children: React.ReactNode;
-  className?: string;
-  label: string;
-}) {
-  return (
-    <label className={`text-sm font-bold text-slate-700 ${className}`}>
-      {label}
-      {children}
-    </label>
-  );
-}
-
 function SummaryItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-emerald-900/10 bg-white p-3">
@@ -90,6 +59,7 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
 export default async function SettingsPage({ searchParams }: { searchParams?: SearchParams }) {
   const user = await requireUser();
   const params = searchParams ? await searchParams : {};
+  const isEditing = getParamValue(params.mode) === "edit";
   const db = getDb();
   const profile = db.select().from(userProfiles).where(eq(userProfiles.userId, user.id)).get();
   const healthSettings = db
@@ -130,7 +100,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Se
         <SectionTitle
           eyebrow="Settings"
           title="ข้อมูลโปรไฟล์สุขภาพ"
-          detail="จัดรูปแบบข้อมูลส่วนตัว เป้าหมายสุขภาพ และข้อจำกัดอาหารเพื่อใช้กับ meal plan, glucose และ dashboard"
+          detail="ข้อมูลถูกล็อกไว้ก่อนแก้ไข กดปุ่มแก้ไขข้อมูลเพื่อเปลี่ยนโปรไฟล์และเป้าหมายสุขภาพ"
         />
 
         {getParamValue(params.saved) === "1" ? (
@@ -145,6 +115,18 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Se
           </div>
         ) : null}
 
+        {getParamValue(params.error) === "invalid-glucose-target" ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
+            ค่า Glucose ต่ำสุดต้องน้อยกว่าค่าสูงสุด
+          </div>
+        ) : null}
+
+        {getParamValue(params.error) === "demo-readonly" ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            บัญชีตัวอย่างใช้ดูข้อมูลเท่านั้น กรุณาสมัครหรือเข้าสู่ระบบด้วยบัญชีจริงเพื่อแก้ไขโปรไฟล์
+          </div>
+        ) : null}
+
         <section className="grid gap-4 rounded-lg border border-emerald-900/10 bg-emerald-50 p-4 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="flex items-start gap-4">
             <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-emerald-700 text-xl font-bold text-white">
@@ -155,7 +137,9 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Se
               <h2 className="mt-1 text-2xl font-bold text-slate-950">{displayName}</h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">{user.email}</p>
               <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                <span className="rounded-lg bg-white px-2 py-1 text-emerald-800">{dietaryLabels[profile?.dietaryStyle ?? ""] ?? "ยังไม่ระบุรูปแบบอาหาร"}</span>
+                <span className="rounded-lg bg-white px-2 py-1 text-emerald-800">
+                  {dietaryLabels[profile?.dietaryStyle ?? ""] ?? "ยังไม่ระบุรูปแบบอาหาร"}
+                </span>
                 <span className="rounded-lg bg-white px-2 py-1 text-slate-700">{allergyText || "ไม่มีข้อมูลแพ้อาหาร"}</span>
               </div>
             </div>
@@ -168,246 +152,25 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Se
           </div>
         </section>
 
-        <form action={updateSettingsAction} className="space-y-5">
-          <div className="grid gap-5 xl:grid-cols-[1fr_0.95fr]">
-            <section className="baojai-card rounded-lg p-5">
-              <div className="flex items-center gap-3">
-                <UserRound className="text-emerald-700" size={22} />
-                <div>
-                  <h2 className="text-xl font-bold text-slate-950">1. ข้อมูลส่วนตัว</h2>
-                  <p className="text-sm text-slate-500">ข้อมูลพื้นฐานที่ใช้แสดงผลและปรับคำแนะนำ</p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <ProfileField label="ชื่อที่แสดง">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={displayName}
-                    name="displayName"
-                    required
-                  />
-                </ProfileField>
-
-                <ProfileField label="อีเมล">
-                  <input
-                    className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500"
-                    defaultValue={user.email}
-                    disabled
-                  />
-                </ProfileField>
-
-                <ProfileField label="เพศ">
-                  <select
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.sex ?? ""}
-                    name="sex"
-                  >
-                    <option value="">ไม่ระบุ</option>
-                    <option value="female">{sexLabels.female}</option>
-                    <option value="male">{sexLabels.male}</option>
-                    <option value="other">{sexLabels.other}</option>
-                  </select>
-                </ProfileField>
-
-                <ProfileField label="ช่วงอายุ">
-                  <select
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.ageRange ?? ""}
-                    name="ageRange"
-                  >
-                    <option value="">ไม่ระบุ</option>
-                    {Object.entries(ageLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </ProfileField>
-
-                <ProfileField label="ส่วนสูง (cm)">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.heightCm ?? ""}
-                    inputMode="numeric"
-                    max={250}
-                    min={80}
-                    name="heightCm"
-                    type="number"
-                  />
-                </ProfileField>
-
-                <ProfileField label="น้ำหนัก (kg)">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.weightKg ?? ""}
-                    inputMode="decimal"
-                    max={300}
-                    min={20}
-                    name="weightKg"
-                    step="0.1"
-                    type="number"
-                  />
-                </ProfileField>
-              </div>
-            </section>
-
-            <section className="baojai-card rounded-lg p-5">
-              <div className="flex items-center gap-3">
-                <Activity className="text-emerald-700" size={22} />
-                <div>
-                  <h2 className="text-xl font-bold text-slate-950">2. บริบทสุขภาพ</h2>
-                  <p className="text-sm text-slate-500">ใช้เป็นข้อมูลประกอบ ไม่ใช่คำวินิจฉัย</p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4">
-                <ProfileField label="ภาวะ/กิจกรรม">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.activityLevel ?? ""}
-                    name="activityLevel"
-                    placeholder="เช่น เบาหวานชนิดที่ 2, เดินเบาๆ"
-                  />
-                </ProfileField>
-
-                <ProfileField label="เป้าหมายสุขภาพ">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.healthGoals?.[0] ?? user.goal}
-                    name="healthGoal"
-                    placeholder="เช่น คุมระดับน้ำตาล"
-                  />
-                </ProfileField>
-
-                <label className="flex items-start gap-3 rounded-lg border border-emerald-900/10 bg-white p-3 text-sm leading-6 text-slate-700">
-                  <input
-                    className="mt-1 h-4 w-4 accent-emerald-700"
-                    defaultChecked={healthSettings?.medicalDisclaimerAccepted ?? false}
-                    name="medicalDisclaimerAccepted"
-                    type="checkbox"
-                  />
-                  <span>ยอมรับว่าข้อมูลในระบบเป็นข้อมูลประกอบการดูแลสุขภาพ ไม่ใช่คำวินิจฉัยหรือคำสั่งรักษา</span>
-                </label>
-              </div>
-            </section>
-          </div>
-
-          <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-            <section className="baojai-card rounded-lg p-5">
-              <div className="flex items-center gap-3">
-                <Utensils className="text-emerald-700" size={22} />
-                <div>
-                  <h2 className="text-xl font-bold text-slate-950">3. รูปแบบอาหาร</h2>
-                  <p className="text-sm text-slate-500">ข้อมูลนี้ใช้ช่วยจัด meal plan และคำแนะนำอาหาร</p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4">
-                <ProfileField label="รูปแบบอาหาร">
-                  <select
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={profile?.dietaryStyle ?? user.dietaryStyle ?? ""}
-                    name="dietaryStyle"
-                  >
-                    <option value="">ไม่ระบุ</option>
-                    {Object.entries(dietaryLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </ProfileField>
-
-                <ProfileField label="อาหารที่แพ้หรือควรเลี่ยง">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={allergyText}
-                    name="allergies"
-                    placeholder="เช่น ถั่วลิสง, กุ้ง, นม"
-                  />
-                </ProfileField>
-              </div>
-            </section>
-
-            <section className="baojai-card rounded-lg p-5">
-              <div className="flex items-center gap-3">
-                <HeartPulse className="text-emerald-700" size={22} />
-                <div>
-                  <h2 className="text-xl font-bold text-slate-950">4. เป้าหมายตัวเลข</h2>
-                  <p className="text-sm text-slate-500">ใช้คำนวณภาพรวมใน dashboard, glucose และ meal plan</p>
-                </div>
-              </div>
-
-              <div className="mt-5 grid gap-4 sm:grid-cols-2">
-                <ProfileField label="น้ำตาลต่อวัน (g)">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={dailySugarLimitG}
-                    inputMode="numeric"
-                    min={1}
-                    name="dailySugarLimitG"
-                    type="number"
-                  />
-                </ProfileField>
-
-                <ProfileField label="คาร์บต่อวัน (g)">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={dailyCarbTargetG}
-                    inputMode="numeric"
-                    min={1}
-                    name="dailyCarbTargetG"
-                    type="number"
-                  />
-                </ProfileField>
-
-                <ProfileField label="โซเดียมต่อวัน (mg)">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={sodiumLimitMg}
-                    inputMode="numeric"
-                    min={1}
-                    name="sodiumLimitMg"
-                    type="number"
-                  />
-                </ProfileField>
-
-                <ProfileField label="Glucose ต่ำสุด">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={glucoseTargetMin}
-                    inputMode="numeric"
-                    min={40}
-                    name="glucoseTargetMin"
-                    type="number"
-                  />
-                </ProfileField>
-
-                <ProfileField label="Glucose สูงสุด">
-                  <input
-                    className="focus-ring mt-2 h-11 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
-                    defaultValue={glucoseTargetMax}
-                    inputMode="numeric"
-                    min={40}
-                    name="glucoseTargetMax"
-                    type="number"
-                  />
-                </ProfileField>
-              </div>
-            </section>
-          </div>
-
-          <div className="sticky bottom-4 z-10 flex justify-end">
-            <button
-              className="focus-ring flex h-12 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-800"
-              type="submit"
-            >
-              <Save size={17} />
-              บันทึกข้อมูลโปรไฟล์
-            </button>
-          </div>
-        </form>
+        <SettingsProfileForm
+          activityLevel={profile?.activityLevel ?? ""}
+          ageRange={profile?.ageRange ?? ""}
+          allergyText={allergyText}
+          dailyCarbTargetG={dailyCarbTargetG}
+          dailySugarLimitG={dailySugarLimitG}
+          dietaryStyle={profile?.dietaryStyle ?? user.dietaryStyle ?? ""}
+          displayName={displayName}
+          email={user.email}
+          glucoseTargetMax={glucoseTargetMax}
+          glucoseTargetMin={glucoseTargetMin}
+          healthGoal={profile?.healthGoals?.[0] ?? user.goal}
+          heightCm={profile?.heightCm ?? null}
+          isEditing={isEditing}
+          medicalDisclaimerAccepted={healthSettings?.medicalDisclaimerAccepted ?? false}
+          sex={profile?.sex ?? ""}
+          sodiumLimitMg={sodiumLimitMg}
+          weightKg={profile?.weightKg ?? null}
+        />
 
         <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
           <section className="baojai-card rounded-lg p-5">
@@ -441,9 +204,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Se
               {envRows.map(([label, value]) => (
                 <div key={label} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
                   <code className="font-semibold text-slate-700">{label}</code>
-                  <span className={value === "ยังไม่ตั้งค่า" ? "font-bold text-red-700" : "font-bold text-emerald-700"}>
-                    {value}
-                  </span>
+                  <span className={value === "ยังไม่ตั้งค่า" ? "font-bold text-red-700" : "font-bold text-emerald-700"}>{value}</span>
                 </div>
               ))}
             </div>
