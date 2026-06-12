@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Leaf, LogOut, Menu, ShieldCheck } from "lucide-react";
 import { signOutAction } from "@/app/login/actions";
-import { navigationItems } from "@/lib/mock-data";
 import type { SessionUser } from "@/lib/auth";
+import { navigationItems } from "@/lib/mock-data";
 
 type AppShellProps = {
   active: string;
@@ -125,7 +125,6 @@ export function AppShell({ active, user, children }: AppShellProps) {
             </form>
           </div>
         </div>
-
       </header>
 
       <main className="px-4 py-6 lg:ml-72 lg:px-8 lg:py-8">{children}</main>

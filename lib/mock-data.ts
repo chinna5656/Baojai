@@ -48,30 +48,10 @@ export const demoUser = {
 };
 
 export const metrics: Metric[] = [
-  {
-    label: "น้ำตาลวันนี้",
-    value: "17g",
-    helper: "เหลืออีก 7g จากเป้าหมาย 24g",
-    tone: "green"
-  },
-  {
-    label: "คาร์บวันนี้",
-    value: "112g",
-    helper: "68% ของเป้าหมายรายวัน",
-    tone: "neutral"
-  },
-  {
-    label: "น้ำตาลในเลือดล่าสุด",
-    value: "126",
-    helper: "mg/dL หลังอาหาร 2 ชม.",
-    tone: "amber"
-  },
-  {
-    label: "ความเสี่ยงอาหาร",
-    value: "กลาง",
-    helper: "มี 2 รายการควรระวัง",
-    tone: "amber"
-  }
+  { label: "น้ำตาลวันนี้", value: "17g", helper: "เหลืออีก 7g จากเป้าหมาย 24g", tone: "green" },
+  { label: "คาร์บวันนี้", value: "112g", helper: "68% ของเป้าหมายรายวัน", tone: "neutral" },
+  { label: "น้ำตาลในเลือดล่าสุด", value: "126", helper: "mg/dL หลังอาหาร 2 ชม.", tone: "amber" },
+  { label: "ความเสี่ยงอาหาร", value: "กลาง", helper: "มี 2 รายการควรระวัง", tone: "amber" }
 ];
 
 export const quickActions = [
@@ -87,6 +67,7 @@ export const navigationItems = [
   { id: "dashboard", label: "Dashboard", href: "/dashboard", icon: Activity },
   { id: "label", label: "ฉลากอาหาร", href: "/label", icon: ScanLine },
   { id: "food-log", label: "บันทึกอาหาร", href: "/food-log", icon: ClipboardList },
+  { id: "foods", label: "เมนูอาหาร", href: "/foods", icon: Utensils },
   { id: "glucose", label: "ระดับน้ำตาล", href: "/glucose", icon: Gauge },
   { id: "meal-plan", label: "แผนอาหาร", href: "/meal-plan", icon: CalendarDays },
   { id: "chat", label: "แชทบอท", href: "/chat", icon: MessageCircle },
@@ -111,27 +92,9 @@ export const monthlyGlucosePoints = [
 ];
 
 export const recentMeals = [
-  {
-    meal: "ข้าวไรซ์เบอร์รี + แกงเลียงกุ้ง",
-    time: "12:20",
-    sugarG: 4,
-    carbG: 42,
-    status: "เหมาะสม"
-  },
-  {
-    meal: "ชานมหวานน้อย",
-    time: "15:10",
-    sugarG: 11,
-    carbG: 28,
-    status: "ควรระวัง"
-  },
-  {
-    meal: "โยเกิร์ตธรรมชาติ + เมล็ดเจีย",
-    time: "18:00",
-    sugarG: 3,
-    carbG: 12,
-    status: "ดี"
-  }
+  { meal: "ข้าวไรซ์เบอร์รี + แกงเลียงกุ้ง", time: "12:20", sugarG: 4, carbG: 42, status: "เหมาะสม" },
+  { meal: "ชานมหวานน้อย", time: "15:10", sugarG: 11, carbG: 28, status: "ควรระวัง" },
+  { meal: "โยเกิร์ตธรรมชาติ + เมล็ดเจีย", time: "18:00", sugarG: 3, carbG: 12, status: "ดี" }
 ];
 
 export const riskAlerts = [
@@ -244,34 +207,10 @@ export const menuRecommendations = [
 ];
 
 export const dailyPlan = [
-  {
-    slot: "เช้า",
-    menu: "โอ๊ตโยเกิร์ตธรรมชาติเมล็ดเจีย",
-    note: "เพิ่มอบเชยได้เล็กน้อย หลีกเลี่ยงน้ำผึ้ง",
-    sugarG: 7,
-    carbG: 38
-  },
-  {
-    slot: "กลางวัน",
-    menu: "ข้าวไรซ์เบอร์รีอกไก่สมุนไพร",
-    note: "ใช้ข้าวครึ่งทัพพีเพิ่มผักใบเขียว",
-    sugarG: 4,
-    carbG: 48
-  },
-  {
-    slot: "ว่าง",
-    menu: "ฝรั่งสด + ไข่ต้ม",
-    note: "เหมาะก่อนประชุมยาว ลดอยากน้ำหวาน",
-    sugarG: 9,
-    carbG: 18
-  },
-  {
-    slot: "เย็น",
-    menu: "ต้มจืดเต้าหู้หมูสับ + ผักกาดขาว",
-    note: "เลือกน้ำซุปใส ลดเค็ม และงดข้าวเพิ่ม",
-    sugarG: 3,
-    carbG: 18
-  }
+  { slot: "เช้า", menu: "โอ๊ตโยเกิร์ตธรรมชาติเมล็ดเจีย", note: "เพิ่มอบเชยได้เล็กน้อย หลีกเลี่ยงน้ำผึ้ง", sugarG: 7, carbG: 38 },
+  { slot: "กลางวัน", menu: "ข้าวไรซ์เบอร์รีอกไก่สมุนไพร", note: "ใช้ข้าวครึ่งทัพพีเพิ่มผักใบเขียว", sugarG: 4, carbG: 48 },
+  { slot: "ว่าง", menu: "ฝรั่งสด + ไข่ต้ม", note: "เหมาะก่อนประชุมยาว ลดอยากน้ำหวาน", sugarG: 9, carbG: 18 },
+  { slot: "เย็น", menu: "ต้มจืดเต้าหู้หมูสับ + ผักกาดขาว", note: "เลือกน้ำซุปใส ลดเค็ม และงดข้าวเพิ่ม", sugarG: 3, carbG: 18 }
 ];
 
 export const chatMessages = [
@@ -279,10 +218,7 @@ export const chatMessages = [
     role: "assistant",
     text: "วันนี้น้ำตาลรวมยังอยู่ในกรอบค่ะ ถ้าจะดื่มเครื่องดื่ม แนะนำชาไม่หวานหรือโซดามะนาวไม่เติมน้ำตาล"
   },
-  {
-    role: "user",
-    text: "ถ้าหิวตอนบ่ายควรกินอะไรดี"
-  },
+  { role: "user", text: "ถ้าหิวตอนบ่ายควรกินอะไรดี" },
   {
     role: "assistant",
     text: "เลือกของว่างที่มีไฟเบอร์และโปรตีน เช่น ฝรั่งกับไข่ต้ม หรือโยเกิร์ตธรรมชาติไม่เติมน้ำตาล จะช่วยให้อิ่มนานกว่าเบเกอรี่หวาน"
@@ -290,50 +226,19 @@ export const chatMessages = [
 ];
 
 export const sheetSources = [
-  {
-    name: "foods",
-    range: "foods!A:K",
-    rows: 128,
-    lastSync: "วันนี้ 09:10",
-    status: "พร้อมใช้งาน"
-  },
-  {
-    name: "menus",
-    range: "menus!A:L",
-    rows: 42,
-    lastSync: "วันนี้ 09:10",
-    status: "พร้อมใช้งาน"
-  },
-  {
-    name: "risk_rules",
-    range: "risk_rules!A:G",
-    rows: 16,
-    lastSync: "วันนี้ 09:10",
-    status: "พร้อมใช้งาน"
-  }
+  { name: "foods", range: "foods!A:K", rows: 128, lastSync: "วันนี้ 09:10", status: "พร้อมใช้งาน" },
+  { name: "menus", range: "menus!A:L", rows: 42, lastSync: "วันนี้ 09:10", status: "พร้อมใช้งาน" },
+  { name: "risk_rules", range: "risk_rules!A:G", rows: 16, lastSync: "วันนี้ 09:10", status: "พร้อมใช้งาน" }
 ];
 
 export const auditEvents = [
-  {
-    action: "sheet_sync.success",
-    detail: "นำเข้า foods, menus, risk_rules รวม 186 แถว",
-    time: "09:10"
-  },
-  {
-    action: "meal_plan.generated",
-    detail: "สร้างแผนอาหารรายวันตามงบน้ำตาล 24g",
-    time: "08:40"
-  },
-  {
-    action: "nutrition_label.analyzed",
-    detail: "วิเคราะห์ฉลากเครื่องดื่มหวานน้อย ระดับเสี่ยงกลาง",
-    time: "เมื่อวาน 18:22"
-  }
+  { action: "sheet_sync.success", detail: "นำเข้า foods, menus, risk_rules รวม 186 แถว", time: "09:10" },
+  { action: "meal_plan.generated", detail: "สร้างแผนอาหารรายวันตามงบน้ำตาล 24g", time: "08:40" },
+  { action: "nutrition_label.analyzed", detail: "วิเคราะห์ฉลากเครื่องดื่มหวานน้อย ระดับเสี่ยงกลาง", time: "เมื่อวาน 18:22" }
 ];
 
 export const dashboardInsight = {
   title: "แนวโน้มสัปดาห์นี้ดีขึ้น",
-  detail:
-    "ค่าเฉลี่ยน้ำตาลหลังอาหารลดลง 8 mg/dL เมื่อเทียบกับสัปดาห์ก่อน หลังลดเครื่องดื่มหวานช่วงบ่าย",
+  detail: "ค่าเฉลี่ยน้ำตาลหลังอาหารลดลง 8 mg/dL เมื่อเทียบกับสัปดาห์ก่อน หลังลดเครื่องดื่มหวานช่วงบ่าย",
   icon: HeartPulse
 };
