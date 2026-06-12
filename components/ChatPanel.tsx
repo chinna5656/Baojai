@@ -1,24 +1,93 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Bot, Send, UserRound } from "lucide-react";
-import { chatMessages } from "@/lib/mock-data";
 
 type Message = {
   role: "assistant" | "user";
   text: string;
+  meta?: string;
 };
 
+type ChatResponse = {
+  reply: string;
+  provider: "safety" | "ollama" | "fallback";
+  model: string;
+  sessionId?: string;
+};
+
+type ChatStatus = {
+  ok: boolean;
+  baseUrl: string;
+  model: string;
+  models: string[];
+  hasConfiguredModel?: boolean;
+  error?: string;
+};
+
+const initialMessages: Message[] = [
+  {
+    role: "assistant",
+    text: "สวัสดีค่ะ ฉันคือ Baojai ถามเรื่องอาหาร ฉลากโภชนาการ แผนมื้ออาหาร หรือแนวโน้มน้ำตาลหลังอาหารได้เลย",
+    meta: "พร้อมต่อ Ollama"
+  }
+];
+
+function getProviderLabel(provider: ChatResponse["provider"], model: string) {
+  if (provider === "ollama") {
+    return `Ollama · ${model}`;
+  }
+
+  if (provider === "safety") {
+    return "Safety guard";
+  }
+
+  return "Fallback";
+}
+
 export function ChatPanel() {
-  const [messages, setMessages] = useState<Message[]>(chatMessages as Message[]);
+  const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [input, setInput] = useState("มื้อเย็นวันนี้ควรกินอะไร ถ้าน้ำตาลหลังอาหารล่าสุด 126");
+  const [sessionId, setSessionId] = useState<string>();
+  const [status, setStatus] = useState<ChatStatus>();
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadStatus() {
+      try {
+        const response = await fetch("/api/chat", { method: "GET" });
+        const payload = (await response.json()) as ChatStatus;
+
+        if (!cancelled) {
+          setStatus(payload);
+        }
+      } catch {
+        if (!cancelled) {
+          setStatus({
+            ok: false,
+            baseUrl: "http://127.0.0.1:11434",
+            model: "llama3.1",
+            models: [],
+            error: "ไม่สามารถตรวจสอบ Ollama ได้"
+          });
+        }
+      }
+    }
+
+    loadStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function submitMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const question = input.trim();
 
-    if (!question) {
+    if (!question || isPending) {
       return;
     }
 
@@ -26,13 +95,40 @@ export function ChatPanel() {
     setInput("");
 
     startTransition(async () => {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question })
-      });
-      const payload = (await response.json()) as { reply: string };
-      setMessages((current) => [...current, { role: "assistant", text: payload.reply }]);
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: question, sessionId })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Chat API returned ${response.status}`);
+        }
+
+        const payload = (await response.json()) as ChatResponse;
+
+        setSessionId(payload.sessionId);
+        setMessages((current) => [
+          ...current,
+          {
+            role: "assistant",
+            text: payload.reply,
+            meta: getProviderLabel(payload.provider, payload.model)
+          }
+        ]);
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "ไม่สามารถส่งข้อความได้";
+
+        setMessages((current) => [
+          ...current,
+          {
+            role: "assistant",
+            text: `ยังส่งข้อความไม่สำเร็จ: ${detail}`,
+            meta: "Error"
+          }
+        ]);
+      }
     });
   }
 
@@ -42,6 +138,12 @@ export function ChatPanel() {
         <div>
           <p className="text-sm font-bold text-emerald-700">Baojai chatbot</p>
           <h2 className="mt-1 text-2xl font-bold text-slate-950">ที่ปรึกษาอาหารทั่วไป</h2>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+            <span className={`rounded-lg px-2 py-1 ${status?.ok ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-900"}`}>
+              {status?.ok ? "Ollama พร้อมใช้งาน" : "รอเชื่อมต่อ Ollama"}
+            </span>
+            <span className="rounded-lg bg-slate-100 px-2 py-1 text-slate-700">Model: {status?.model ?? "llama3.1"}</span>
+          </div>
         </div>
         <span className="grid h-11 w-11 place-items-center rounded-lg bg-emerald-100 text-emerald-700">
           <Bot size={22} />
@@ -65,7 +167,8 @@ export function ChatPanel() {
                   isUser ? "bg-emerald-700 text-white" : "border border-emerald-900/10 bg-white text-slate-700"
                 }`}
               >
-                {message.text}
+                <p className="whitespace-pre-wrap">{message.text}</p>
+                {message.meta ? <p className={`mt-2 text-xs font-bold ${isUser ? "text-emerald-100" : "text-emerald-700"}`}>{message.meta}</p> : null}
               </div>
               {isUser ? (
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-600">
@@ -87,13 +190,19 @@ export function ChatPanel() {
         />
         <button
           aria-label="ส่งข้อความ"
-          className="focus-ring grid h-12 w-12 place-items-center rounded-lg bg-emerald-700 text-white transition hover:bg-emerald-800"
+          className="focus-ring grid h-12 w-12 place-items-center rounded-lg bg-emerald-700 text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          disabled={isPending}
           title="ส่งข้อความ"
           type="submit"
         >
           <Send size={18} />
         </button>
       </form>
+      {!status?.ok ? (
+        <p className="mt-3 text-xs leading-5 text-amber-800">
+          เปิด Ollama แล้วรัน `ollama pull {status?.model ?? "llama3.1"}` หากต้องการใช้โมเดลในเครื่อง
+        </p>
+      ) : null}
     </section>
   );
 }

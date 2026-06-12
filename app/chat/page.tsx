@@ -1,24 +1,45 @@
-import { ShieldCheck } from "lucide-react";
+import { Server, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ChatPanel } from "@/components/ChatPanel";
 import { SectionTitle } from "@/components/SectionTitle";
+import { getOllamaConfig } from "@/lib/ollama";
 import { requireUser } from "@/lib/auth";
 
 export default async function ChatPage() {
   const user = await requireUser();
+  const ollama = getOllamaConfig();
 
   return (
     <AppShell active="chat" user={user}>
       <div className="mx-auto max-w-7xl space-y-6">
         <SectionTitle
           eyebrow="Chatbot"
-          title="แชทบอทให้คำปรึกษา"
-          detail="ตอบคำถามทั่วไปเรื่องอาหาร ฉลาก และแผนมื้อถัดไป โดยใช้ safety boundary ไม่วินิจฉัยโรคหรือปรับยา"
+          title="แชทบอทพร้อมเชื่อมต่อ Ollama"
+          detail="ตอบคำถามทั่วไปเรื่องอาหาร ฉลาก และแผนมื้ออาหาร โดยมี safety boundary ไม่วินิจฉัยโรคหรือปรับยา"
         />
 
         <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
           <ChatPanel />
           <aside className="space-y-5">
+            <section className="baojai-card rounded-lg p-5">
+              <div className="flex items-center gap-3">
+                <Server className="text-emerald-700" size={22} />
+                <h2 className="text-xl font-bold text-slate-950">Ollama connection</h2>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm leading-6 text-slate-600">
+                <p>
+                  Base URL: <span className="font-bold text-slate-900">{ollama.baseUrl}</span>
+                </p>
+                <p>
+                  Model: <span className="font-bold text-slate-900">{ollama.model}</span>
+                </p>
+                <div className="rounded-lg bg-slate-950 p-3 font-mono text-xs leading-5 text-emerald-100">
+                  <p>ollama serve</p>
+                  <p>ollama pull {ollama.model}</p>
+                </div>
+              </div>
+            </section>
+
             <section className="baojai-card rounded-lg p-5">
               <div className="flex items-center gap-3">
                 <ShieldCheck className="text-emerald-700" size={22} />
@@ -28,7 +49,7 @@ export default async function ChatPage() {
                 <li>• ไม่วินิจฉัยโรคหรือแปลผลแทนแพทย์</li>
                 <li>• ไม่แนะนำปรับยา อินซูลิน หรือหยุดยา</li>
                 <li>• ถ้ามีอาการฉุกเฉินให้ติดต่อหน่วยแพทย์ทันที</li>
-                <li>• บันทึก prompt, response และ safety flags ลง log ได้</li>
+                <li>• บันทึก prompt, response, model และ safety flags ลง audit log</li>
               </ul>
             </section>
 
