@@ -10,14 +10,18 @@ import { glucosePoints, monthlyGlucosePoints } from "@/lib/mock-data";
 import { deleteGlucoseLogAction, logGlucoseAction } from "./actions";
 
 const contextLabels = {
-  fasting: "Fasting",
-  before_meal: "Before meal",
-  after_meal: "After meal",
-  bedtime: "Bedtime",
-  other: "Other"
+  fasting: "อดอาหาร",
+  before_meal: "ก่อนอาหาร",
+  after_meal: "หลังอาหาร",
+  bedtime: "ก่อนนอน",
+  other: "อื่นๆ"
 } as const;
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
+
+function getParamValue(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function formatDateTime(date: Date) {
   const formatted = new Intl.DateTimeFormat("en-GB", {
@@ -45,6 +49,10 @@ function toDateTimeLocalValue(date: Date) {
   return localDate.toISOString().slice(0, 16);
 }
 
+function isMealPlanNote(note: string | null) {
+  return note?.startsWith("จากแผนอาหาร:") ?? false;
+}
+
 export default async function GlucosePage({ searchParams }: { searchParams?: SearchParams }) {
   const user = await requireUser();
   const params = searchParams ? await searchParams : {};
@@ -54,7 +62,7 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
     .from(glucoseLogs)
     .where(eq(glucoseLogs.userId, user.id))
     .orderBy(desc(glucoseLogs.measuredAt))
-    .limit(12)
+    .limit(20)
     .all();
 
   const chartPoints =
@@ -69,6 +77,7 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
       : glucosePoints;
   const latestValue = logs[0]?.value;
   const sevenDayAverage = logs.length > 0 ? average(logs.slice(0, 7).map((log) => log.value)) : 126;
+  const mealPlanLogCount = logs.filter((log) => isMealPlanNote(log.notes)).length;
 
   return (
     <AppShell active="glucose" user={user}>
@@ -76,28 +85,28 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
         <SectionTitle
           eyebrow="Blood glucose"
           title="วิเคราะห์แนวโน้มระดับน้ำตาลในเลือด"
-          detail="ติดตามค่าน้ำตาลตามช่วงเวลาและบริบท เช่น ก่อนอาหาร หลังอาหาร หรือก่อนนอน เพื่อดูแนวโน้มโดยไม่วินิจฉัยโรค"
+          detail="ติดตามค่าน้ำตาลตามช่วงเวลาและดูค่าที่บันทึกจากการทำตามแผนอาหาร"
         />
 
-        {params.saved === "1" ? (
+        {getParamValue(params.saved) === "1" ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
             ค่าน้ำตาลในเลือดถูกบันทึกแล้ว
           </div>
         ) : null}
 
-        {params.deleted === "1" ? (
+        {getParamValue(params.deleted) === "1" ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
             ค่าน้ำตาลในเลือดถูกลบแล้ว
           </div>
         ) : null}
 
-        {params.error === "invalid-value" ? (
+        {getParamValue(params.error) === "invalid-value" ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
             ป้อนค่าน้ำตาลในเลือดระหว่าง 20 ถึง 600 mg/dL
           </div>
         ) : null}
 
-        {params.error === "invalid-time" ? (
+        {getParamValue(params.error) === "invalid-time" ? (
           <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">
             เลือกวันที่และเวลาที่ถูกต้อง
           </div>
@@ -133,12 +142,12 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
               <label className="text-sm font-bold text-slate-700">
                 ค่าน้ำตาลในเลือด (mg/dL)
                 <input
-                  name="glucoseValue"
                   className="focus-ring mt-2 h-12 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm outline-none focus:border-emerald-500"
                   defaultValue={latestValue ?? 126}
                   inputMode="numeric"
                   max={600}
                   min={20}
+                  name="glucoseValue"
                   required
                   type="number"
                 />
@@ -147,9 +156,9 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
               <label className="text-sm font-bold text-slate-700">
                 บริบท
                 <select
-                  name="context"
                   className="focus-ring mt-2 h-12 w-full cursor-pointer rounded-lg border border-emerald-900/10 bg-white px-3 text-sm text-slate-800 outline-none focus:border-emerald-500"
                   defaultValue="after_meal"
+                  name="context"
                 >
                   <option value="fasting">อดอาหาร</option>
                   <option value="before_meal">ก่อนอาหาร</option>
@@ -162,9 +171,9 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
               <label className="text-sm font-bold text-slate-700">
                 เวลาวัด
                 <input
-                  name="measuredAt"
                   className="focus-ring mt-2 h-12 w-full rounded-lg border border-emerald-900/10 bg-white px-3 text-sm text-slate-800 outline-none focus:border-emerald-500"
                   defaultValue={toDateTimeLocalValue(new Date())}
+                  name="measuredAt"
                   type="datetime-local"
                 />
               </label>
@@ -172,8 +181,8 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
               <label className="text-sm font-bold text-slate-700">
                 หมายเหตุ
                 <textarea
-                  name="notes"
                   className="focus-ring mt-2 min-h-24 w-full rounded-lg border border-emerald-900/10 bg-white px-3 py-3 text-sm outline-none focus:border-emerald-500"
+                  name="notes"
                   placeholder="อาหาร, กิจกรรม, อาการ, หรือเวลา"
                 />
               </label>
@@ -190,7 +199,7 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
 
         <div className="grid gap-5 xl:grid-cols-3">
           <section className="baojai-card rounded-lg border border-emerald-900/5 bg-white p-5 shadow-sm xl:col-span-2">
-            <p className="text-sm font-bold text-emerald-700">แนวโน้มล่าสุด</p>
+            <p className="text-sm font-bold text-emerald-700">รายการล่าสุด</p>
             <h2 className="mt-1 text-2xl font-bold text-slate-950">
               {logs.length > 0 ? `${logs.length} ค่าที่บันทึกไว้` : "ยังไม่มีค่าน้ำตาลในเลือดที่บันทึกไว้"}
             </h2>
@@ -213,13 +222,20 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
                         <td className="px-4 py-3 font-semibold text-slate-700">{formatDateTime(log.measuredAt)}</td>
                         <td className="px-4 py-3 font-bold text-slate-950">{log.value} mg/dL</td>
                         <td className="px-4 py-3 text-slate-600">{contextLabels[log.context]}</td>
-                        <td className="px-4 py-3 text-slate-600">{log.notes || "-"}</td>
+                        <td className="px-4 py-3 text-slate-600">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {isMealPlanNote(log.notes) ? (
+                              <span className="rounded-lg bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-800">จากแผนอาหาร</span>
+                            ) : null}
+                            <span>{log.notes || "-"}</span>
+                          </div>
+                        </td>
                         <td className="px-4 py-3">
                           <form action={deleteGlucoseLogAction} className="flex justify-end">
                             <input name="logId" type="hidden" value={log.id} />
                             <button
                               className="focus-ring grid h-9 w-9 place-items-center rounded-lg border border-red-200 bg-white text-red-600 transition hover:bg-red-50"
-                              title="Delete glucose reading"
+                              title="ลบค่าน้ำตาล"
                               type="submit"
                             >
                               <Trash2 size={16} />
@@ -231,7 +247,7 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
                   ) : (
                     <tr>
                       <td className="px-4 py-6 text-center text-slate-500" colSpan={5}>
-                        เพิ่มค่าน้ำตาลในเลือดแรกของคุณ
+                        เพิ่มค่าน้ำตาลในเลือดแรกของคุณ หรือบันทึกจากหน้าแผนอาหารเมื่อทำตามแผน
                       </td>
                     </tr>
                   )}
@@ -255,8 +271,12 @@ export default async function GlucosePage({ searchParams }: { searchParams?: Sea
                 <dd className="font-bold text-slate-950">{user.glucoseTarget}</dd>
               </div>
               <div className="flex items-center justify-between rounded-lg bg-white px-3 py-3 ring-1 ring-emerald-900/10">
-                <dt className="font-semibold text-slate-700">บันทึก</dt>
+                <dt className="font-semibold text-slate-700">บันทึกทั้งหมด</dt>
                 <dd className="font-bold text-slate-950">{logs.length}</dd>
+              </div>
+              <div className="flex items-center justify-between rounded-lg bg-white px-3 py-3 ring-1 ring-emerald-900/10">
+                <dt className="font-semibold text-slate-700">จากแผนอาหาร</dt>
+                <dd className="font-bold text-slate-950">{mealPlanLogCount}</dd>
               </div>
             </dl>
             <div className="mt-5 h-44 rounded-lg border border-emerald-900/10 bg-white p-4">
