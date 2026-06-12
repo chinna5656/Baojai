@@ -139,8 +139,18 @@ export function SettingsProfileForm(props: SettingsProfileFormProps) {
             <h2 className="text-xl font-bold text-slate-950">2. บริบทสุขภาพ</h2>
             <p className="mt-1 text-sm text-slate-500">ใช้เป็นข้อมูลประกอบ ไม่ใช่คำวินิจฉัย</p>
             <div className="mt-5 grid gap-4">
-              <ProfileField label="ภาวะ/กิจกรรม">
-                <input className={fieldClass(props.isEditing)} defaultValue={props.activityLevel} maxLength={120} name="activityLevel" placeholder="เช่น เบาหวานชนิดที่ 2, เดินเบาๆ" />
+              <ProfileField label="ประเภทโรคเบาหวาน">
+                <select id="diabetesType" name="activityLevel" defaultValue={props.activityLevel || "type2"}
+                  disabled={!props.isEditing}
+                  className={`w-full h-11 px-3 pr-10 text-sm font-medium rounded-lg border outline-none appearance-none transition-all duration-200 cursor-pointer ${
+                  props.isEditing
+                  ? "bg-white border-emerald-900/10 text-slate-950 shadow-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  : "bg-slate-50 border-slate-100 text-slate-400 cursor-not-allowed"
+                  }`}>
+                  <option value="type2">เบาหวานชนิดที่ 2 (ดื้ออินซูลิน)</option>
+                  <option value="type1">เบาหวานชนิดที่ 1 (ขาดอินซูลิน)</option>
+                  <option value="pre-diabetes">เสี่ยงเบาหวาน (Pre-diabetes)</option>
+                </select>
               </ProfileField>
               <ProfileField label="เป้าหมายสุขภาพ">
                 <input className={fieldClass(props.isEditing)} defaultValue={props.healthGoal} maxLength={100} name="healthGoal" placeholder="เช่น คุมระดับน้ำตาล" />
