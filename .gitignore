@@ -3,6 +3,7 @@
 node_modules
 dist
 coverage
+perf-results/*.json
 .env
 .env*.local
 *.tsbuildinfo

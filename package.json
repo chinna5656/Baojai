@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
+    "perf:k6": "k6 run k6/baojai-smoke.js",
+    "perf:k6:summary": "k6 run --summary-export perf-results/k6-summary.json k6/baojai-smoke.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
