@@ -9,8 +9,14 @@ export type OllamaChatResult = {
 };
 
 const DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434";
-const DEFAULT_OLLAMA_MODEL = "llama3.1";
-const OLLAMA_TIMEOUT_MS = 20_000;
+const DEFAULT_OLLAMA_MODEL = "qwen2.5";
+const DEFAULT_OLLAMA_TIMEOUT_MS = 120_000;
+
+function getOllamaTimeoutMs() {
+  const timeout = Number(process.env.OLLAMA_TIMEOUT_MS);
+
+  return Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_OLLAMA_TIMEOUT_MS;
+}
 
 export function getOllamaConfig() {
   return {
@@ -61,7 +67,7 @@ export async function askOllama(messages: OllamaChatMessage[]): Promise<OllamaCh
         top_p: 0.9
       }
     }),
-    signal: AbortSignal.timeout(OLLAMA_TIMEOUT_MS)
+    signal: AbortSignal.timeout(getOllamaTimeoutMs())
   });
 
   if (!response.ok) {

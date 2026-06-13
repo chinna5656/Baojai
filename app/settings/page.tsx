@@ -91,7 +91,7 @@ export default async function SettingsPage({ searchParams }: { searchParams?: Se
     ["GOOGLE_PRIVATE_KEY", process.env.GOOGLE_PRIVATE_KEY ? "ตั้งค่าแล้ว" : "ยังไม่ตั้งค่า"],
     ["GOOGLE_SHEET_ID", process.env.GOOGLE_SHEET_ID ? "ตั้งค่าแล้ว" : "ยังไม่ตั้งค่า"],
     ["OLLAMA_BASE_URL", process.env.OLLAMA_BASE_URL ?? "http://127.0.0.1:11434"],
-    ["OLLAMA_MODEL", process.env.OLLAMA_MODEL ?? "llama3.1"]
+    ["OLLAMA_MODEL", process.env.OLLAMA_MODEL ?? "qwen2.5"]
   ];
 
   return (

@@ -2,8 +2,8 @@ import { Server, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ChatPanel } from "@/components/ChatPanel";
 import { SectionTitle } from "@/components/SectionTitle";
-import { getOllamaConfig } from "@/lib/ollama";
 import { requireUser } from "@/lib/auth";
+import { getOllamaConfig } from "@/lib/ollama";
 
 export default async function ChatPage() {
   const user = await requireUser();
@@ -49,7 +49,7 @@ export default async function ChatPage() {
                 <li>• ไม่วินิจฉัยโรคหรือแปลผลแทนแพทย์</li>
                 <li>• ไม่แนะนำปรับยา อินซูลิน หรือหยุดยา</li>
                 <li>• ถ้ามีอาการฉุกเฉินให้ติดต่อหน่วยแพทย์ทันที</li>
-                <li>• บันทึก prompt, response, model และ safety flags ลง audit log</li>
+                <li>• บันทึก prompt, response, model และ safety flags ลง audit log เมื่อทำได้</li>
               </ul>
             </section>
 

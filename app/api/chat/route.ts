@@ -32,7 +32,7 @@ const safetySystemPrompt = `
 ตอบเป็นภาษาไทย กระชับ ใช้ภาษาที่เข้าใจง่าย และเน้นคำแนะนำทั่วไปที่ปลอดภัย
 ห้ามวินิจฉัยโรค ห้ามสั่งยา ห้ามปรับยา อินซูลิน หรือแผนรักษาเฉพาะบุคคล
 ถ้าคำถามเกี่ยวกับอาการฉุกเฉิน ยา หรือผลตรวจที่เสี่ยง ให้แนะนำพบแพทย์หรือเภสัชกรโดยตรง
-สำหรับอาหาร ให้แนะนำการคุม portion ลดน้ำหวาน เลือกโปรตีน/ผัก/คาร์บเชิงซ้อน และบันทึก glucose หลังอาหารเมื่อเหมาะสม
+สำหรับอาหาร ให้แนะนำการคุม portion ลดน้ำหวาน เลือกโปรตีน ผัก คาร์บเชิงซ้อน และบันทึก glucose หลังอาหารเมื่อเหมาะสม
 `.trim();
 
 function getSafetyFlags(message: string) {
@@ -49,7 +49,28 @@ function getFallbackReply(error: unknown) {
   const { baseUrl, model } = getOllamaConfig();
   const detail = error instanceof Error ? error.message : "ไม่สามารถเชื่อมต่อ Ollama ได้";
 
-  return `ยังเชื่อมต่อ Ollama ไม่สำเร็จ (${detail})\n\nตรวจสอบบนเครื่อง:\n1. เปิด Ollama\n2. รันคำสั่ง ollama pull ${model}\n3. ตรวจว่า server อยู่ที่ ${baseUrl}\n\nระหว่างนี้ Baojai ยังพร้อมตอบด้วยระบบ fallback: ถามเรื่องอาหาร ฉลาก หรือแผนมื้ออาหารได้ และควรเลี่ยงคำแนะนำด้านยา/การรักษาเฉพาะบุคคล`;
+  return `ยังเชื่อมต่อ Ollama ไม่สำเร็จ (${detail})
+
+ตรวจสอบบนเครื่อง:
+1. เปิด Ollama
+2. รันคำสั่ง ollama pull ${model}
+3. ตรวจว่า server อยู่ที่ ${baseUrl}
+
+ระหว่างนี้ Baojai จะแสดงคำตอบสำรองให้ก่อน: เลือกมื้อที่มีโปรตีนและผักเป็นหลัก ลดเครื่องดื่มหวาน คุมปริมาณคาร์บ และบันทึก glucose หลังอาหารเพื่อดูแนวโน้ม`;
+}
+
+function getMissingModelReply(model: string, baseUrl: string, models: string[]) {
+  const installedModels = models.length > 0 ? models.join(", ") : "ยังไม่พบโมเดลในเครื่อง";
+
+  return `ยังไม่พบโมเดล ${model} ใน Ollama
+
+ให้รันคำสั่ง:
+ollama pull ${model}
+
+Ollama server: ${baseUrl}
+โมเดลที่พบตอนนี้: ${installedModels}
+
+ระหว่างนี้ Baojai จะแสดงคำตอบสำรองให้ก่อน: ถ้าต้องวางแผนมื้ออาหาร ให้เริ่มจากผักครึ่งจาน โปรตีนหนึ่งส่วน คาร์บเชิงซ้อนหนึ่งส่วน ลดน้ำหวาน และบันทึก glucose หลังอาหารเพื่อดูผลจริง`;
 }
 
 async function saveChatExchange(input: {
@@ -60,44 +81,75 @@ async function saveChatExchange(input: {
   model: string;
   safetyFlags: string[];
 }) {
-  if (!input.userId) {
+  if (!input.userId || input.userId === "demo") {
     return undefined;
   }
 
-  const db = getDb();
-  const sessionId =
-    input.sessionId ??
-    db
-      .insert(chatSessions)
-      .values({
-        userId: input.userId,
-        title: input.userMessage.slice(0, 80)
-      })
-      .returning({ id: chatSessions.id })
-      .get().id;
+  try {
+    const db = getDb();
+    const sessionId =
+      input.sessionId ??
+      db
+        .insert(chatSessions)
+        .values({
+          userId: input.userId,
+          title: input.userMessage.slice(0, 80)
+        })
+        .returning({ id: chatSessions.id })
+        .get().id;
 
-  db.insert(chatMessages)
-    .values([
-      {
-        sessionId,
-        userId: input.userId,
-        role: "user",
-        content: input.userMessage,
+    db.insert(chatMessages)
+      .values([
+        {
+          sessionId,
+          userId: input.userId,
+          role: "user",
+          content: input.userMessage,
+          model: input.model,
+          safetyFlags: input.safetyFlags
+        },
+        {
+          sessionId,
+          userId: input.userId,
+          role: "assistant",
+          content: input.assistantReply,
+          model: input.model,
+          safetyFlags: input.safetyFlags
+        }
+      ])
+      .run();
+
+    return sessionId;
+  } catch (error) {
+    console.warn("[chat] skipped database chat log", error);
+    return undefined;
+  }
+}
+
+async function safeAuditLog(input: {
+  userId?: string;
+  sessionId?: string;
+  message: string;
+  safetyFlags: string[];
+  model: string;
+  provider: string;
+}) {
+  try {
+    await writeAuditLog({
+      userId: input.userId === "demo" ? undefined : input.userId,
+      action: "chat.message.responded",
+      resourceType: "chat_message",
+      resourceId: input.sessionId,
+      metadata: {
+        promptLength: input.message.length,
+        safetyFlags: input.safetyFlags,
         model: input.model,
-        safetyFlags: input.safetyFlags
-      },
-      {
-        sessionId,
-        userId: input.userId,
-        role: "assistant",
-        content: input.assistantReply,
-        model: input.model,
-        safetyFlags: input.safetyFlags
+        provider: input.provider
       }
-    ])
-    .run();
-
-  return sessionId;
+    });
+  } catch (error) {
+    console.warn("[chat] skipped audit log", error);
+  }
 }
 
 export async function GET() {
@@ -110,8 +162,22 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const parsed = chatSchema.safeParse(await request.json());
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        reply: "กรุณาพิมพ์คำถามให้ถูกต้อง ความยาวไม่เกิน 1200 ตัวอักษร",
+        safetyFlags: [],
+        provider: "fallback",
+        model: "validation"
+      },
+      { status: 400 }
+    );
+  }
+
   const user = await getCurrentUser();
-  const { message, sessionId } = chatSchema.parse(await request.json());
+  const { message, sessionId } = parsed.data;
   const safetyFlags = getSafetyFlags(message);
   const config = getOllamaConfig();
 
@@ -124,19 +190,29 @@ export async function POST(request: Request) {
     provider = "safety";
     model = "local-safety-guard";
   } else {
-    try {
-      const messages: OllamaChatMessage[] = [
-        { role: "system", content: safetySystemPrompt },
-        { role: "user", content: message }
-      ];
-      const result = await askOllama(messages);
+    const status = await checkOllamaStatus();
 
-      reply = result.content;
-      model = result.model;
-      provider = "ollama";
-    } catch (error) {
-      reply = getFallbackReply(error);
+    if (!status.ok) {
+      reply = getFallbackReply(new Error(status.error ?? "Ollama is not ready"));
       provider = "fallback";
+    } else if (status.hasConfiguredModel === false) {
+      reply = getMissingModelReply(status.model, status.baseUrl, status.models);
+      provider = "fallback";
+    } else {
+      try {
+        const messages: OllamaChatMessage[] = [
+          { role: "system", content: safetySystemPrompt },
+          { role: "user", content: message }
+        ];
+        const result = await askOllama(messages);
+
+        reply = result.content;
+        model = result.model;
+        provider = "ollama";
+      } catch (error) {
+        reply = getFallbackReply(error);
+        provider = "fallback";
+      }
     }
   }
 
@@ -149,17 +225,13 @@ export async function POST(request: Request) {
     safetyFlags
   });
 
-  await writeAuditLog({
+  await safeAuditLog({
     userId: user?.id,
-    action: "chat.message.responded",
-    resourceType: "chat_message",
-    resourceId: savedSessionId,
-    metadata: {
-      promptLength: message.length,
-      safetyFlags,
-      model,
-      provider
-    }
+    sessionId: savedSessionId,
+    message,
+    safetyFlags,
+    model,
+    provider
   });
 
   return NextResponse.json({
@@ -167,6 +239,6 @@ export async function POST(request: Request) {
     safetyFlags,
     provider,
     model,
-    sessionId: savedSessionId
+    sessionId: savedSessionId ?? sessionId
   });
 }
